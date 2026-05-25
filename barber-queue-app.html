@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Barber HTM — Système de File</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root {
   --red:#c8102e; --red-dark:#9b0b22; --red-light:#e63050;
@@ -428,23 +428,6 @@ body{font-family:'Cairo',sans-serif;background:var(--dark);color:var(--white);mi
 
 <div class="toast" id="toast"></div>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<!-- تهيئة Firebase فوراً بعد تحميل الـ SDK -->
-<script>
-  firebase.initializeApp({
-    apiKey:            "AIzaSyBF4XH88YKePJlPppeyWmqtUtjMETk64M0",
-    authDomain:        "barber-haithem.firebaseapp.com",
-    databaseURL:       "https://barber-haithem-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId:         "barber-haithem",
-    storageBucket:     "barber-haithem.firebasestorage.app",
-    messagingSenderId: "895304335588",
-    appId:             "1:895304335588:web:68703141cbf6407d2c2cf1"
-  });
-</script>
-
 <script>
 // ═══════════════════════════════════════════════
 //  STATE
@@ -842,8 +825,23 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter') addClient(); 
     toast('💾 تم استرجاع الطابور المحفوظ', 'ok');
   }
   // Auto reconnect Firebase if previously configured
-  autoReconnectFirebase();
 })();
+</script>
+
+<!-- Firebase SDK — loaded last باش ما يبلوكش الصفحة -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyBF4XH88YKePJlPppeyWmqtUtjMETk64M0",
+    authDomain:        "barber-haithem.firebaseapp.com",
+    databaseURL:       "https://barber-haithem-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "barber-haithem",
+    storageBucket:     "barber-haithem.firebasestorage.app",
+    messagingSenderId: "895304335588",
+    appId:             "1:895304335588:web:68703141cbf6407d2c2cf1"
+  });
+  autoReconnectFirebase();
 </script>
 </body>
 </html>
