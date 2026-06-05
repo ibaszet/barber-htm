@@ -670,11 +670,11 @@ function listenPendingBookings() {
     if (!current) { current = c; totalDay++; }
     else {
       queue.push(c);
-      // ترتيب تلقائي من الأقرب للأبعد
       queue.sort((a, b) => (a.appointmentAt || 0) - (b.appointmentAt || 0));
     }
 
-    snapshot.ref.update({ _processed: true });
+    // نمحي السجل نهائياً من Firebase بدل ما نكتب _processed
+    snapshot.ref.remove();
 
     toast('🌐 حجز جديد من الموقع: ' + c.name, 'ok');
     save(); render();
