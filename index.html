@@ -1541,11 +1541,11 @@ function isValidPhone(phone) {
 // ══════════════════════════════════════════════
 const AR_DAYS   = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-const WORK_START = 11;
-const WORK_END   = 25;  // 25 = 01:00 ليلا (ما بعد منتصف الليل)
+const WORK_START = 9;
+const WORK_END   = 20;
 
 let calSelDate   = null;   // Date object (يوم مختار)
-let calSelHour   = 11;     // ساعة مختارة
+let calSelHour   = 9;      // ساعة مختارة
 let calApptTs    = null;   // timestamp للموعد (للفايرباز)
 let calApptLabel = null;   // نص الموعد
 
@@ -1582,10 +1582,7 @@ function selectCalDay(card, date) {
   // حدد الساعة الأولى المتاحة
   const now     = new Date();
   const isToday = date.toDateString() === now.toDateString();
-  const curH    = now.getHours();
-  // إذا الحين بعد منتصف الليل (0-1) نحسبها كـ 24-25
-  const curHAdj = curH < WORK_START ? curH + 24 : curH;
-  calSelHour    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
+  calSelHour    = isToday ? Math.max(WORK_START, now.getHours() + 1) : WORK_START;
   if (calSelHour > WORK_END) calSelHour = WORK_END;
 
   const picker = document.getElementById('calTimePicker');
@@ -1600,9 +1597,7 @@ window.calShiftHour = function(delta) {
   if (!calSelDate) return;
   const now     = new Date();
   const isToday = calSelDate.toDateString() === now.toDateString();
-  const curH    = now.getHours();
-  const curHAdj = curH < WORK_START ? curH + 24 : curH;
-  const minH    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
+  const minH    = isToday ? Math.max(WORK_START, now.getHours() + 1) : WORK_START;
 
   calSelHour += delta;
   if (calSelHour < minH)    calSelHour = minH;
@@ -1615,15 +1610,12 @@ window.calShiftHour = function(delta) {
 };
 
 function updateTimeDisplay() {
-  const displayHour = calSelHour % 24;  // 25→01, 24→00, 23→23
-  const hStr = String(displayHour).padStart(2, '0') + ':00';
+  const hStr = String(calSelHour).padStart(2, '0') + ':00';
   document.getElementById('calTimeVal').textContent = hStr;
 
-  // حفظ البيانات — إذا الساعة > 23 يعني اليوم التالي
+  // حفظ البيانات
   const appt = new Date(calSelDate);
-  appt.setHours(displayHour, 0, 0, 0);
-  if (calSelHour >= 24) appt.setDate(appt.getDate() + 1);  // 01:00 صباح اليوم التالي
-
+  appt.setHours(calSelHour, 0, 0, 0);
   calApptTs    = appt.getTime();
   calApptLabel = AR_DAYS[calSelDate.getDay()] + ' ' + calSelDate.getDate() +
                  ' ' + AR_MONTHS[calSelDate.getMonth()] + ' — ' + hStr;
@@ -1642,7 +1634,7 @@ function updateTimeDisplay() {
 
 window.resetCal = function() {
   calSelDate   = null;
-  calSelHour   = WORK_START;
+  calSelHour   = 9;
   calApptTs    = null;
   calApptLabel = null;
   document.querySelectorAll('.cal-day-card').forEach(c => c.classList.remove('active'));
@@ -1697,17 +1689,23 @@ function fetchQueuePosition(myApptTs, myPhone) {
   const posNum   = document.getElementById('positionNumber');
   const posLabel = document.getElementById('positionLabel');
 
-  db.ref('barber_htm/pending_bookings')
-    .orderByChild('appointmentAt')
-    .once('value', snapshot => {
-      const all = [];
-      snapshot.forEach(child => {
-        const v = child.val();
-        if (!v._processed) all.push(v);
-      });
+  // نقرأ من الطابور الحقيقي مش من pending_bookings
+  setTimeout(() => {
+    db.ref('barber_htm/queue').once('value', snapshot => {
+      const data = snapshot.val();
+      if (!data) {
+        posNum.textContent   = '1';
+        posLabel.textContent = 'أنت الأول في الطابور 🎉';
+        return;
+      }
 
-      // نلقى مكانه: أول سجل مطابق لـ ts + phone
-      let myPos = all.findIndex(v => v.appointmentAt === myApptTs && v.phone === myPhone);
+      // نبني قائمة كاملة: current + queue مرتبين
+      const all = [];
+      if (data.current) all.push(data.current);
+      if (data.queue && Array.isArray(data.queue)) all.push(...data.queue);
+
+      // نلقى مكانه بالتلفون
+      let myPos = all.findIndex(v => v.phone === myPhone);
       if (myPos === -1) myPos = all.length - 1;
 
       const position = myPos + 1;
@@ -1721,11 +1719,11 @@ function fetchQueuePosition(myApptTs, myPhone) {
           ? 'فيه زبون واحد قبلك'
           : 'فيه ' + before + ' زبائن قبلك';
       }
-    })
-    .catch(() => {
+    }).catch(() => {
       posNum.textContent   = '✓';
       posLabel.textContent = 'تم تسجيلك بنجاح';
     });
+  }, 2000);
 }
 
 // ─── helpers ────────────────────────────────────────────────
