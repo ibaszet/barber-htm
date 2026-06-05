@@ -205,15 +205,22 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 .adm-item{background:var(--dark3);border:1px solid #1c1c1c;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;animation:fadeUp .3s ease;transition:border-color .3s;}
 .adm-item.now{border-color:rgba(0,70,184,.45);background:rgba(0,48,135,.08);}
 .adm-n{font-family:'Oswald',sans-serif;font-size:24px;font-weight:700;color:var(--blue-light);min-width:38px;text-align:center;}
-.adm-info{flex:1;}
-.adm-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.adm-info{flex:1;min-width:0;}
+.adm-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .now-tag{font-size:10px;background:var(--blue-mid);color:#fff;padding:2px 8px;border-radius:50px;font-weight:700;letter-spacing:.5px;}
 .adm-phone{font-size:12px;color:#555;direction:ltr;font-family:monospace;}
-.adm-acts{display:flex;gap:8px;}
+.adm-appt{font-size:11px;color:var(--gold);margin-top:3px;font-weight:600;letter-spacing:.3px;}
+.adm-acts{display:flex;gap:6px;flex-shrink:0;}
 .btn-done{background:#091525;color:#60a5fa;border:1px solid #1a3a5e;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;transition:all .2s;white-space:nowrap;}
 .btn-done:hover{background:#1a3a5e;}
 .btn-rm{background:#1a1a1a;color:#555;border:1px solid #252525;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:13px;transition:all .2s;}
 .btn-rm:hover{background:#2a0d0d;color:var(--red);border-color:var(--red);}
+.btn-up,.btn-dn{background:#141414;color:#444;border:1px solid #222;border-radius:8px;padding:8px 9px;cursor:pointer;font-size:13px;transition:all .2s;line-height:1;}
+.btn-up:hover{background:rgba(0,70,184,.18);color:var(--blue-light);border-color:rgba(0,70,184,.4);}
+.btn-dn:hover{background:rgba(201,151,58,.12);color:var(--gold);border-color:rgba(201,151,58,.4);}
+.btn-up:disabled,.btn-dn:disabled{opacity:.2;cursor:not-allowed;}
+.btn-sort{background:rgba(201,151,58,.1);color:var(--gold);border:1px solid rgba(201,151,58,.3);border-radius:8px;padding:8px 14px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;transition:all .2s;white-space:nowrap;}
+.btn-sort:hover{background:rgba(201,151,58,.22);}
 .empty-adm{text-align:center;padding:44px 20px;color:#333;font-size:15px;line-height:2;}
 
 /* Reset button */
@@ -415,7 +422,8 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 
   <div class="qm-head">
     <span class="qm-title">FILE D'ATTENTE — الطابور</span>
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn-sort" onclick="sortByAppt()" title="ترتيب حسب الموعد">📅 ترتيب بالموعد</button>
       <button class="btn-reset-day" onclick="resetDay()">🔄 يوم جديد</button>
       <span class="qm-badge" id="adm-count">0</span>
     </div>
@@ -649,15 +657,22 @@ function listenPendingBookings() {
     if (!booking || booking._processed) return;
 
     const c = {
-      id:      Date.now() + Math.random(),
-      num:     nextNum++,
-      name:    booking.name    || 'زبون',
-      phone:   booking.phone   || '—',
-      service: booking.service || '',
-      source:  'website'
+      id:          Date.now() + Math.random(),
+      num:         nextNum++,
+      name:        booking.name        || 'زبون',
+      phone:       booking.phone       || '—',
+      service:     booking.service     || '',
+      appointment: booking.appointment || '',   // نص الموعد
+      appointmentAt: booking.appointmentAt || 0, // timestamp للترتيب
+      source:      'website'
     };
+
     if (!current) { current = c; totalDay++; }
-    else queue.push(c);
+    else {
+      queue.push(c);
+      // ترتيب تلقائي من الأقرب للأبعد
+      queue.sort((a, b) => (a.appointmentAt || 0) - (b.appointmentAt || 0));
+    }
 
     snapshot.ref.update({ _processed: true });
 
@@ -695,6 +710,27 @@ function remove(id) {
   if (current && current.id === id) { done(); return; }
   queue = queue.filter(c => c.id !== id);
   toast('🗑️ Supprimé — تم الحذف', '');
+  save(); render();
+}
+
+function moveUp(qi) {
+  if (qi <= 0 || qi >= queue.length) return;
+  [queue[qi - 1], queue[qi]] = [queue[qi], queue[qi - 1]];
+  toast('⬆️ تم التقديم', 'ok');
+  save(); render();
+}
+
+function moveDn(qi) {
+  if (qi < 0 || qi >= queue.length - 1) return;
+  [queue[qi], queue[qi + 1]] = [queue[qi + 1], queue[qi]];
+  toast('⬇️ تم التأخير', 'ok');
+  save(); render();
+}
+
+function sortByAppt() {
+  if (queue.length < 2) { toast('⚠️ ما فيش ما يترتب', 'warn'); return; }
+  queue.sort((a, b) => (a.appointmentAt || 0) - (b.appointmentAt || 0));
+  toast('📅 تم الترتيب حسب الموعد', 'ok');
   save(); render();
 }
 
@@ -746,17 +782,34 @@ function render() {
     al.innerHTML = `<div class="empty-adm"><div style="font-size:38px;margin-bottom:10px">✂️</div>File vide — الطابور فارغ<br><span style="font-size:12px;color:#2a2a2a">Ajoutez le premier client ci-dessus</span></div>`;
     return;
   }
-  al.innerHTML = all.map(c => `<div class="adm-item ${c.serving ? 'now' : ''}">
+  al.innerHTML = all.map((c, i) => {
+    const isServing = !!c.serving;
+    const qi = current ? i - 1 : i;
+    const canUp = !isServing && qi > 0;
+    const canDn = !isServing && qi < queue.length - 1;
+    const apptHtml = c.appointment
+      ? `<div class="adm-appt">📅 ${c.appointment}</div>`
+      : '';
+    const webTag = c.source === 'website'
+      ? `<span style="background:rgba(26,106,255,.18);color:var(--blue-light);font-size:9px;padding:2px 7px;border-radius:50px;font-weight:700;letter-spacing:.5px;">🌐 WEB</span>`
+      : '';
+    return `<div class="adm-item ${isServing ? 'now' : ''}">
     <div class="adm-n">${String(c.num).padStart(2,'0')}</div>
     <div class="adm-info">
-      <div class="adm-name">${c.name}${c.serving ? '<span class="now-tag">EN SERVICE</span>' : ''}${c.source === 'website' ? '<span style="background:rgba(26,106,255,.18);color:var(--blue-light);font-size:9px;padding:2px 7px;border-radius:50px;font-weight:700;letter-spacing:.5px;">🌐 WEB</span>' : ''}</div>
+      <div class="adm-name">${c.name}${isServing ? '<span class="now-tag">EN SERVICE</span>' : ''}${webTag}</div>
       <div class="adm-phone">${c.phone}</div>
+      ${apptHtml}
     </div>
     <div class="adm-acts">
-      ${c.serving ? `<button class="btn-done" onclick="done()">✅ Terminé</button>` : ''}
+      ${isServing
+        ? `<button class="btn-done" onclick="done()">✅ Terminé</button>`
+        : `<button class="btn-up" onclick="moveUp(${qi})" ${canUp ? '' : 'disabled'}>▲</button>
+           <button class="btn-dn" onclick="moveDn(${qi})" ${canDn ? '' : 'disabled'}>▼</button>`
+      }
       <button class="btn-rm" onclick="remove(${c.id})">✕</button>
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════
