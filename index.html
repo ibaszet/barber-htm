@@ -1541,8 +1541,8 @@ function isValidPhone(phone) {
 // ══════════════════════════════════════════════
 const AR_DAYS   = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-const WORK_START = 9;
-const WORK_END   = 20;
+const WORK_START = 11;
+const WORK_END   = 25;  // 25 = 01:00 ليلا
 
 let calSelDate   = null;   // Date object (يوم مختار)
 let calSelHour   = 9;      // ساعة مختارة
@@ -1582,7 +1582,9 @@ function selectCalDay(card, date) {
   // حدد الساعة الأولى المتاحة
   const now     = new Date();
   const isToday = date.toDateString() === now.toDateString();
-  calSelHour    = isToday ? Math.max(WORK_START, now.getHours() + 1) : WORK_START;
+  const curH    = now.getHours();
+  const curHAdj = curH < WORK_START ? curH + 24 : curH;
+  calSelHour    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
   if (calSelHour > WORK_END) calSelHour = WORK_END;
 
   const picker = document.getElementById('calTimePicker');
@@ -1597,7 +1599,9 @@ window.calShiftHour = function(delta) {
   if (!calSelDate) return;
   const now     = new Date();
   const isToday = calSelDate.toDateString() === now.toDateString();
-  const minH    = isToday ? Math.max(WORK_START, now.getHours() + 1) : WORK_START;
+  const curH    = now.getHours();
+  const curHAdj = curH < WORK_START ? curH + 24 : curH;
+  const minH    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
 
   calSelHour += delta;
   if (calSelHour < minH)    calSelHour = minH;
@@ -1610,31 +1614,33 @@ window.calShiftHour = function(delta) {
 };
 
 function updateTimeDisplay() {
-  const hStr = String(calSelHour).padStart(2, '0') + ':00';
+  const displayHour = calSelHour % 24;
+  const hStr = String(displayHour).padStart(2, '0') + ':00';
   document.getElementById('calTimeVal').textContent = hStr;
 
-  // حفظ البيانات
   const appt = new Date(calSelDate);
-  appt.setHours(calSelHour, 0, 0, 0);
+  appt.setHours(displayHour, 0, 0, 0);
+  if (calSelHour >= 24) appt.setDate(appt.getDate() + 1);
+
   calApptTs    = appt.getTime();
   calApptLabel = AR_DAYS[calSelDate.getDay()] + ' ' + calSelDate.getDate() +
                  ' ' + AR_MONTHS[calSelDate.getMonth()] + ' — ' + hStr;
 
-  // تحديث الملخص
   document.getElementById('calSummaryText').textContent = calApptLabel;
   document.getElementById('calSummary').style.display = 'flex';
 
-  // تحديث أسهم
   const now     = new Date();
   const isToday = calSelDate.toDateString() === now.toDateString();
-  const minH    = isToday ? Math.max(WORK_START, now.getHours() + 1) : WORK_START;
+  const curH    = now.getHours();
+  const curHAdj = curH < WORK_START ? curH + 24 : curH;
+  const minH    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
   document.getElementById('calPrev').disabled = (calSelHour <= minH);
   document.getElementById('calNext').disabled = (calSelHour >= WORK_END);
 }
 
 window.resetCal = function() {
   calSelDate   = null;
-  calSelHour   = 9;
+  calSelHour   = WORK_START;
   calApptTs    = null;
   calApptLabel = null;
   document.querySelectorAll('.cal-day-card').forEach(c => c.classList.remove('active'));
