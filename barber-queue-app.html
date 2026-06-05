@@ -5,6 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Barber HTM — Système de File</title>
 
+<!-- PWA -->
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Barber HTM">
+<link rel="apple-touch-icon" href="https://ibaszet.github.io/barber-htm/1000033743.jpg">
+<link rel="manifest" href="data:application/json;charset=utf-8,{
+  &quot;name&quot;: &quot;Barber HTM — File d'attente&quot;,
+  &quot;short_name&quot;: &quot;Barber HTM&quot;,
+  &quot;description&quot;: &quot;نظام إدارة الطابور — Barber HTM&quot;,
+  &quot;start_url&quot;: &quot;./barber-queue-app.html&quot;,
+  &quot;display&quot;: &quot;standalone&quot;,
+  &quot;background_color&quot;: &quot;#0a0a0a&quot;,
+  &quot;theme_color&quot;: &quot;#0a0a0a&quot;,
+  &quot;orientation&quot;: &quot;portrait&quot;,
+  &quot;icons&quot;: [{
+    &quot;src&quot;: &quot;https://ibaszet.github.io/barber-htm/1000033743.jpg&quot;,
+    &quot;sizes&quot;: &quot;192x192&quot;,
+    &quot;type&quot;: &quot;image/jpeg&quot;
+  }, {
+    &quot;src&quot;: &quot;https://ibaszet.github.io/barber-htm/1000033743.jpg&quot;,
+    &quot;sizes&quot;: &quot;512x512&quot;,
+    &quot;type&quot;: &quot;image/jpeg&quot;
+  }]
+}">
+
 <style>
 :root {
   --red:#c8102e; --red-dark:#9b0b22; --red-light:#e63050;
@@ -895,6 +921,78 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter') addClient(); 
     appId:             "1:895304335588:web:68703141cbf6407d2c2cf1"
   });
   autoReconnectFirebase();
+</script>
+<!-- PWA Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+  // نبني service worker من blob باش يشتغل من ملف واحد
+  const swCode = `
+const CACHE = 'barber-htm-v1';
+const ASSETS = [
+  self.location.href.replace('/sw.js','') + '/barber-queue-app.html'
+];
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(()=>{})
+  );
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  // Firebase و APIs — دايماً من الشبكة
+  if (e.request.url.includes('firebase') || e.request.url.includes('googleapis')) return;
+  e.respondWith(
+    fetch(e.request)
+      .then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
+  );
+});
+`;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl, { scope: './' })
+    .then(() => console.log('✅ PWA Service Worker actif'))
+    .catch(e => console.log('SW:', e));
+}
+
+// بنر "اضف للشاشة" على iPhone
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone;
+  if (isIOS && !isStandalone) {
+    setTimeout(() => {
+      const banner = document.createElement('div');
+      banner.style.cssText = `
+        position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+        background:#1a1a1a;border:1px solid #333;border-radius:16px;
+        padding:14px 20px;z-index:9999;display:flex;align-items:center;
+        gap:12px;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.6);
+        animation:fadeUp .4s ease;
+      `;
+      banner.innerHTML = `
+        <span style="font-size:28px">📲</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;">أضف للشاشة الرئيسية</div>
+          <div style="font-size:11px;color:#888;line-height:1.5;">اضغط <strong style="color:#fff">⎋ Share</strong> ثم <strong style="color:#fff">"Sur l'écran d'accueil"</strong></div>
+        </div>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#555;font-size:20px;cursor:pointer;padding:4px;">✕</button>
+      `;
+      document.body.appendChild(banner);
+      setTimeout(() => banner.remove(), 8000);
+    }, 3000);
+  }
+});
 </script>
 </body>
 </html>
