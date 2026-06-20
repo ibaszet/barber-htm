@@ -1457,23 +1457,10 @@ footer {
       </div>
       <!-- CALENDAR BOOKING -->
       <div class="modal-field" id="calendarField">
-        <label>📅 اختار يوم وساعة موعدك</label>
+        <label>📅 اختار يوم موعدك</label>
 
         <!-- شبكة الأيام 7×1 -->
         <div class="cal-grid" id="calGrid"></div>
-
-        <!-- اختيار الساعة يظهر بعد ما يختار يوم -->
-        <div class="cal-timepicker" id="calTimePicker" style="display:none">
-          <div class="cal-timepicker-label" id="calTimeLabel"></div>
-          <div class="cal-time-row">
-            <button type="button" class="cal-time-arrow" id="calPrev" onclick="calShiftHour(-1)">‹</button>
-            <div class="cal-time-display">
-              <div class="cal-time-val" id="calTimeVal">09:00</div>
-              <div class="cal-time-sub">اضغط على السهم لتغيير الساعة</div>
-            </div>
-            <button type="button" class="cal-time-arrow" id="calNext" onclick="calShiftHour(+1)">›</button>
-          </div>
-        </div>
 
         <!-- ملخص الاختيار -->
         <div class="cal-summary" id="calSummary" style="display:none">
@@ -1584,17 +1571,14 @@ function isValidPhone(phone) {
 }
 
 // ══════════════════════════════════════════════
-// CALENDAR WIDGET
+// CALENDAR WIDGET — اليوم فقط، بدون ساعة
 // ══════════════════════════════════════════════
 const AR_DAYS   = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-const WORK_START = 11;
-const WORK_END   = 25;  // 25 = 01:00 ليلا
 
 let calSelDate   = null;   // Date object (يوم مختار)
-let calSelHour   = 9;      // ساعة مختارة
-let calApptTs    = null;   // timestamp للموعد (للفايرباز)
-let calApptLabel = null;   // نص الموعد
+let calApptTs    = null;   // timestamp اليوم (للترتيب في الفايرباز)
+let calApptLabel = null;   // نص الموعد (اليوم فقط)
 
 function buildCalGrid() {
   const grid = document.getElementById('calGrid');
@@ -1626,73 +1610,30 @@ function selectCalDay(card, date) {
   card.classList.add('active');
   calSelDate = date;
 
-  // حدد الساعة الأولى المتاحة
-  const now     = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const curH    = now.getHours();
-  const curHAdj = curH < WORK_START ? curH + 24 : curH;
-  calSelHour    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
-  if (calSelHour > WORK_END) calSelHour = WORK_END;
-
-  const picker = document.getElementById('calTimePicker');
-  picker.style.display = 'flex';
-  document.getElementById('calTimeLabel').textContent =
-    AR_DAYS[date.getDay()] + ' ' + date.getDate() + ' ' + AR_MONTHS[date.getMonth()];
-
-  updateTimeDisplay();
-}
-
-window.calShiftHour = function(delta) {
-  if (!calSelDate) return;
-  const now     = new Date();
-  const isToday = calSelDate.toDateString() === now.toDateString();
-  const curH    = now.getHours();
-  const curHAdj = curH < WORK_START ? curH + 24 : curH;
-  const minH    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
-
-  calSelHour += delta;
-  if (calSelHour < minH)    calSelHour = minH;
-  if (calSelHour > WORK_END) calSelHour = WORK_END;
-
-  document.getElementById('calPrev').disabled = (calSelHour <= minH);
-  document.getElementById('calNext').disabled = (calSelHour >= WORK_END);
-
-  updateTimeDisplay();
-};
-
-function updateTimeDisplay() {
-  const displayHour = calSelHour % 24;
-  const hStr = String(displayHour).padStart(2, '0') + ':00';
-  document.getElementById('calTimeVal').textContent = hStr;
-
-  const appt = new Date(calSelDate);
-  appt.setHours(displayHour, 0, 0, 0);
-  if (calSelHour >= 24) appt.setDate(appt.getDate() + 1);
+  // الموعد = بداية اليوم المختار + وقت التسجيل الفعلي (للترتيب بين زبائن نفس اليوم)
+  const now = new Date();
+  const appt = new Date(date);
+  if (date.toDateString() === now.toDateString()) {
+    // اليوم: نحافظ على وقت التسجيل الحقيقي باش يترتب صح مع زبائن "دروك"
+    appt.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
+  } else {
+    // يوم آخر: بداية النهار + ترتيب حسب وقت التسجيل (دقائق) باش ما يتلخبطش الترتيب بين زبائن نفس اليوم
+    appt.setHours(0, now.getMinutes() % 60, now.getSeconds(), 0);
+  }
 
   calApptTs    = appt.getTime();
-  calApptLabel = AR_DAYS[calSelDate.getDay()] + ' ' + calSelDate.getDate() +
-                 ' ' + AR_MONTHS[calSelDate.getMonth()] + ' — ' + hStr;
+  calApptLabel = AR_DAYS[date.getDay()] + ' ' + date.getDate() + ' ' + AR_MONTHS[date.getMonth()];
 
   document.getElementById('calSummaryText').textContent = calApptLabel;
   document.getElementById('calSummary').style.display = 'flex';
-
-  const now     = new Date();
-  const isToday = calSelDate.toDateString() === now.toDateString();
-  const curH    = now.getHours();
-  const curHAdj = curH < WORK_START ? curH + 24 : curH;
-  const minH    = isToday ? Math.max(WORK_START, curHAdj + 1) : WORK_START;
-  document.getElementById('calPrev').disabled = (calSelHour <= minH);
-  document.getElementById('calNext').disabled = (calSelHour >= WORK_END);
 }
 
 window.resetCal = function() {
   calSelDate   = null;
-  calSelHour   = WORK_START;
   calApptTs    = null;
   calApptLabel = null;
   document.querySelectorAll('.cal-day-card').forEach(c => c.classList.remove('active'));
-  document.getElementById('calTimePicker').style.display = 'none';
-  document.getElementById('calSummary').style.display    = 'none';
+  document.getElementById('calSummary').style.display = 'none';
   buildCalGrid();
 };
 
@@ -1709,7 +1650,7 @@ async function bookNow() {
   if (!name || !phone)      { shakeModal('⚠️ يرجى ملء جميع الحقول'); return; }
   if (!isValidPhone(phone)) { shakeModal('📵 رقم الهاتف غير صحيح (مثال: 0600 000 000)'); return; }
   if (isOnCooldown(phone))  { shakeModal('⏳ سجّلت مؤخراً، انتظر 30 دقيقة'); return; }
-  if (!calApptTs)           { shakeModal('📅 اختار يوم وساعة موعدك'); return; }
+  if (!calApptTs)           { shakeModal('📅 اختار يوم موعدك'); return; }
 
   btn.disabled = true;
   btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="white" style="animation:spin .8s linear infinite"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" opacity=".3"/><path d="M20 12h2A10 10 0 0 0 12 2v2a8 8 0 0 1 8 8z"/></svg> جاري التسجيل...';
