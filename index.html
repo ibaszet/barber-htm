@@ -1028,6 +1028,8 @@ footer {
 }
 .modal-field input:focus,
 .modal-field select:focus { border-color: var(--blue); }
+.modal-field select optgroup { font-weight: 700; color: var(--blue); }
+.modal-field select option { font-weight: 400; color: var(--dark); }
 
 .modal-submit {
   background: var(--red);
@@ -1455,6 +1457,36 @@ footer {
         <label>رقم الهاتف</label>
         <input type="tel" id="clientPhone" placeholder="0600 000 000" dir="ltr" />
       </div>
+      <!-- نوع الخدمة -->
+      <div class="modal-field">
+        <label>💈 نوع الخدمة</label>
+        <select id="clientService">
+          <option value="">اختر الخدمة...</option>
+          <optgroup label="COUPE / قصة الشعر">
+            <option value="Coupe Simple">Coupe Simple</option>
+            <option value="Coupe + Lahya">Coupe + Lahya</option>
+          </optgroup>
+          <optgroup label="TRACAGE / تراصاج">
+            <option value="Tracage Simple">Tracage Simple</option>
+            <option value="Tracage Fini">Tracage Fini</option>
+          </optgroup>
+          <optgroup label="BRUSHING / بروشينج">
+            <option value="Brushing Simple">Brushing Simple</option>
+            <option value="Brushing + Lisseur">Brushing + Lisseur</option>
+          </optgroup>
+          <optgroup label="PROTEINE / بروتين">
+            <option value="Protéine Normal">Protéine Normal</option>
+            <option value="Kératine">Kératine</option>
+            <option value="Protéine Link">Protéine Link</option>
+          </optgroup>
+          <optgroup label="SOIN PEAU / عناية البشرة">
+            <option value="Nettoyage de Peau">Nettoyage de Peau</option>
+            <option value="Gommage + Masque Noir">Gommage + Masque Noir</option>
+            <option value="Gommage + Vapeur + Masque">Gommage + Vapeur + Masque</option>
+          </optgroup>
+        </select>
+      </div>
+
       <!-- CALENDAR BOOKING -->
       <div class="modal-field" id="calendarField">
         <label>📅 اختار يوم موعدك</label>
@@ -1528,6 +1560,7 @@ window.closeBookingModal = function () {
   document.body.style.overflow = '';
   document.getElementById('clientName').value = '';
   document.getElementById('clientPhone').value = '';
+  document.getElementById('clientService').selectedIndex = 0;
   resetCal();
 };
 
@@ -1571,13 +1604,13 @@ function isValidPhone(phone) {
 }
 
 // ══════════════════════════════════════════════
-// CALENDAR WIDGET — اليوم فقط، بدون ساعة
+// CALENDAR WIDGET — اليوم فقط بدون ساعة
 // ══════════════════════════════════════════════
 const AR_DAYS   = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
 let calSelDate   = null;   // Date object (يوم مختار)
-let calApptTs    = null;   // timestamp اليوم (للترتيب في الفايرباز)
+let calApptTs    = null;   // timestamp اليوم (لترتيب الفايرباز)
 let calApptLabel = null;   // نص الموعد (اليوم فقط)
 
 function buildCalGrid() {
@@ -1610,14 +1643,13 @@ function selectCalDay(card, date) {
   card.classList.add('active');
   calSelDate = date;
 
-  // الموعد = بداية اليوم المختار + وقت التسجيل الفعلي (للترتيب بين زبائن نفس اليوم)
+  // الموعد = بداية اليوم المختار + وقت التسجيل الحالي
+  // (باش يترتب صح بين زبائن نفس اليوم حسب وقت تسجيلهم)
   const now = new Date();
   const appt = new Date(date);
   if (date.toDateString() === now.toDateString()) {
-    // اليوم: نحافظ على وقت التسجيل الحقيقي باش يترتب صح مع زبائن "دروك"
     appt.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
   } else {
-    // يوم آخر: بداية النهار + ترتيب حسب وقت التسجيل (دقائق) باش ما يتلخبطش الترتيب بين زبائن نفس اليوم
     appt.setHours(0, now.getMinutes() % 60, now.getSeconds(), 0);
   }
 
@@ -1643,11 +1675,13 @@ buildCalGrid();
 document.getElementById('submitBtn').addEventListener('click', bookNow);
 
 async function bookNow() {
-  const name  = document.getElementById('clientName').value.trim();
-  const phone = document.getElementById('clientPhone').value.trim();
-  const btn   = document.getElementById('submitBtn');
+  const name    = document.getElementById('clientName').value.trim();
+  const phone   = document.getElementById('clientPhone').value.trim();
+  const service = document.getElementById('clientService').value;
+  const btn     = document.getElementById('submitBtn');
 
   if (!name || !phone)      { shakeModal('⚠️ يرجى ملء جميع الحقول'); return; }
+  if (!service)             { shakeModal('💈 يرجى اختيار نوع الخدمة'); return; }
   if (!isValidPhone(phone)) { shakeModal('📵 رقم الهاتف غير صحيح (مثال: 0600 000 000)'); return; }
   if (isOnCooldown(phone))  { shakeModal('⏳ سجّلت مؤخراً، انتظر 30 دقيقة'); return; }
   if (!calApptTs)           { shakeModal('📅 اختار يوم موعدك'); return; }
@@ -1660,6 +1694,7 @@ async function bookNow() {
     await db.ref('barber_htm/pending_bookings').push({
       name,
       phone,
+      service,
       appointment:   calApptLabel,
       appointmentAt: calApptTs,
       source:        'website',
@@ -1679,45 +1714,64 @@ async function bookNow() {
 }
 
 // ─── queue position — BUG FIX ────────────────────────────
+// المشكل القديم: كنا نقرا فقط barber_htm/queue بعد تأخير 2 ثانية،
+// لكن تطبيق المحل يقدر يتأخر أكثر في معالجة الحجز (لو التطبيق
+// مغلق أو الشبكة بطيئة)، فكنا نلقى رقم غلط أو "أنت الأول" دايماً.
+// الحل: نحسب الموقع مباشرة من (queue الحالي + pending_bookings
+// اللي لسا ماتعالجوش) مرتبين حسب appointmentAt — هكي الرقم
+// يكون صحيح فوراً بلا ما نعتمد على معالجة تطبيق المحل.
 function fetchQueuePosition(myApptTs, myPhone) {
   const posNum   = document.getElementById('positionNumber');
   const posLabel = document.getElementById('positionLabel');
 
-  // نقرأ من الطابور الحقيقي مش من pending_bookings
-  setTimeout(() => {
-    db.ref('barber_htm/queue').once('value', snapshot => {
-      const data = snapshot.val();
-      if (!data) {
-        posNum.textContent   = '1';
-        posLabel.textContent = 'أنت الأول في الطابور 🎉';
-        return;
+  Promise.all([
+    db.ref('barber_htm/queue').once('value'),
+    db.ref('barber_htm/pending_bookings').once('value')
+  ]).then(([queueSnap, pendingSnap]) => {
+    const data = queueSnap.val();
+    const all  = [];
+
+    // 1) الزبون الحالي اللي يُخدَم + الطابور المثبت في تطبيق المحل
+    if (data) {
+      if (data.current) all.push({ phone: data.current.phone, appointmentAt: data.current.appointmentAt || 0 });
+      if (data.queue && Array.isArray(data.queue)) {
+        data.queue.forEach(c => all.push({ phone: c.phone, appointmentAt: c.appointmentAt || 0 }));
       }
+    }
 
-      // نبني قائمة كاملة: current + queue مرتبين
-      const all = [];
-      if (data.current) all.push(data.current);
-      if (data.queue && Array.isArray(data.queue)) all.push(...data.queue);
+    // 2) الحجوزات الجديدة اللي لسا التطبيق ما عالجهاش (pending)
+    const pendingVal = pendingSnap.val();
+    if (pendingVal) {
+      Object.values(pendingVal).forEach(b => {
+        // نتجنب التكرار: إذا الزبون موجود فالـ queue أصلاً، ما نزيدوش مرتين
+        const alreadyIn = all.some(v => v.phone === b.phone && v.appointmentAt === b.appointmentAt);
+        if (!alreadyIn) all.push({ phone: b.phone, appointmentAt: b.appointmentAt || 0 });
+      });
+    }
 
-      // نلقى مكانه بالتلفون
-      let myPos = all.findIndex(v => v.phone === myPhone);
-      if (myPos === -1) myPos = all.length - 1;
+    // نرتب الكل حسب appointmentAt من الأقرب للأبعد
+    all.sort((a, b) => (a.appointmentAt || 0) - (b.appointmentAt || 0));
 
-      const position = myPos + 1;
-      posNum.textContent = position;
+    // نلقى مكان الزبون الحالي بدقة (الهاتف + نفس وقت الموعد)
+    let myPos = all.findIndex(v => v.phone === myPhone && v.appointmentAt === myApptTs);
+    if (myPos === -1) myPos = all.findIndex(v => v.phone === myPhone);
+    if (myPos === -1) myPos = all.length - 1;
 
-      if (position === 1) {
-        posLabel.textContent = 'أنت الأول في الطابور 🎉';
-      } else {
-        const before = position - 1;
-        posLabel.textContent = before === 1
-          ? 'فيه زبون واحد قبلك'
-          : 'فيه ' + before + ' زبائن قبلك';
-      }
-    }).catch(() => {
-      posNum.textContent   = '✓';
-      posLabel.textContent = 'تم تسجيلك بنجاح';
-    });
-  }, 2000);
+    const position = myPos + 1;
+    posNum.textContent = position;
+
+    if (position === 1) {
+      posLabel.textContent = 'أنت الأول في الطابور 🎉';
+    } else {
+      const before = position - 1;
+      posLabel.textContent = before === 1
+        ? 'فيه زبون واحد قبلك'
+        : 'فيه ' + before + ' زبائن قبلك';
+    }
+  }).catch(() => {
+    posNum.textContent   = '✓';
+    posLabel.textContent = 'تم تسجيلك بنجاح';
+  });
 }
 
 // ─── helpers ────────────────────────────────────────────────
