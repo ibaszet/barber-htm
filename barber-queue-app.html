@@ -110,8 +110,8 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 .brand-name{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;color:var(--white);line-height:1;letter-spacing:1px;}
 .brand-name span{color:var(--red);}
 .brand-sub{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:4px;color:rgba(255,255,255,.4);margin-top:5px;text-transform:uppercase;}
-.tv-clock{font-family:'Oswald',sans-serif;font-size:44px;font-weight:700;color:#C9973A!important;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:2px;text-align:center;}
-.tv-date{font-size:12px;color:#C9973A!important;margin-top:4px;letter-spacing:.5px;text-align:center;opacity:.75;}
+.tv-clock{font-family:'Oswald',sans-serif;font-size:44px;font-weight:700;color:var(--white);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:2px;text-align:center;}
+.tv-date{font-size:12px;color:#666;margin-top:4px;letter-spacing:.5px;text-align:center;}
 
 /* MID */
 .tv-mid{display:flex;flex-direction:column;gap:16px;justify-content:center;}
@@ -236,6 +236,9 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 .now-tag{font-size:10px;background:var(--blue-mid);color:#fff;padding:2px 8px;border-radius:50px;font-weight:700;letter-spacing:.5px;}
 .adm-phone{font-size:12px;color:#555;direction:ltr;font-family:monospace;}
 .adm-appt{font-size:11px;color:var(--gold);margin-top:3px;font-weight:600;letter-spacing:.3px;}
+.adm-service{font-size:12px;color:#888;margin-top:3px;font-weight:600;}
+.sc-service{font-size:16px;color:var(--gold);margin-top:6px;font-weight:700;}
+.qc-service{font-size:11px;color:#999;margin-top:2px;font-weight:600;}
 .adm-acts{display:flex;gap:6px;flex-shrink:0;}
 .btn-done{background:#091525;color:#60a5fa;border:1px solid #1a3a5e;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;transition:all .2s;white-space:nowrap;}
 .btn-done:hover{background:#1a3a5e;}
@@ -264,6 +267,73 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 </style>
 </head>
 <body>
+
+<!-- ════ LOGIN SCREEN — حماية بكلمة سر ════ -->
+<div id="lockScreen" style="
+  position:fixed;inset:0;z-index:9999;
+  background:#0a0a0a;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:24px;padding:24px;
+">
+  <div style="width:84px;height:84px;border-radius:50%;background-image:url('1000033743.jpg');background-size:cover;background-position:center 10%;border:2.5px solid #0046b8;box-shadow:0 0 30px rgba(0,70,184,.4);"></div>
+  <div style="text-align:center;">
+    <div style="font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:#fff;">Barber <span style="color:#c8102e">HTM</span></div>
+    <div style="font-size:12px;color:#666;margin-top:4px;letter-spacing:2px;">🔒 دخول الإدارة — ADMIN ACCESS</div>
+  </div>
+  <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:14px;">
+    <input type="password" id="lockPassInput" placeholder="••••••••" autocomplete="off"
+      style="width:100%;background:#161616;border:1.5px solid #252525;border-radius:12px;padding:16px 18px;color:#fff;font-family:'Cairo',sans-serif;font-size:18px;text-align:center;letter-spacing:4px;outline:none;transition:border-color .2s;"
+      onkeydown="if(event.key==='Enter') checkLockPassword()">
+    <div id="lockError" style="display:none;color:#c8102e;font-size:13px;text-align:center;font-weight:700;">❌ كلمة السر غير صحيحة</div>
+    <button onclick="checkLockPassword()" style="width:100%;background:#0046b8;color:#fff;border:none;border-radius:12px;padding:15px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:16px;font-weight:700;transition:all .2s;">
+      🔓 دخول
+    </button>
+  </div>
+</div>
+
+<style>
+body.locked > *:not(#lockScreen) { display: none !important; }
+@keyframes shakeLock {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-8px); }
+  80% { transform: translateX(8px); }
+}
+</style>
+
+<script>
+document.body.classList.add('locked');
+const ADMIN_PASSWORD   = 'haithem2006';
+const LOCK_SESSION_KEY = 'barber_htm_unlocked';
+
+function checkLockPassword() {
+  const input = document.getElementById('lockPassInput');
+  const err   = document.getElementById('lockError');
+  if (input.value === ADMIN_PASSWORD) {
+    sessionStorage.setItem(LOCK_SESSION_KEY, '1');
+    unlockApp();
+  } else {
+    err.style.display = 'block';
+    input.value = '';
+    input.style.borderColor = '#c8102e';
+    const box = document.getElementById('lockScreen');
+    box.style.animation = 'none';
+    requestAnimationFrame(() => { box.style.animation = 'shakeLock .4s ease'; });
+    setTimeout(() => { input.style.borderColor = '#252525'; }, 1500);
+  }
+}
+
+function unlockApp() {
+  document.body.classList.remove('locked');
+  document.getElementById('lockScreen').remove();
+}
+
+// إذا الجلسة مفكوكة مسبقاً، ما نطلبش الباسورد من جديد
+if (sessionStorage.getItem(LOCK_SESSION_KEY) === '1') {
+  unlockApp();
+}
+</script>
 
 <div class="nav-bar">
   <div class="nav-tab active" onclick="switchTab('tv',this)">📺 Écran TV — شاشة التلفاز</div>
@@ -443,6 +513,10 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
       <label class="inp-l">NUMÉRO DE TÉL — رقم الهاتف</label>
       <input class="inp" id="inp-phone" type="tel" placeholder="0555 123 456" dir="ltr" style="text-align:left" autocomplete="off">
     </div>
+    <div class="inp-w">
+      <label class="inp-l">SERVICE — نوع الخدمة (اختياري)</label>
+      <input class="inp" id="inp-service" type="text" placeholder="Ex: Coupe + Lahya" autocomplete="off">
+    </div>
     <button class="btn-add" onclick="addClient()">✚ Ajouter — إضافة</button>
   </div>
 
@@ -466,7 +540,7 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 // ═══════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════
-let queue = [], current = null, totalDay = 0, nextNum = 1;
+let queue = [], current = null, totalDay = 0;
 let firebaseDb = null;
 let firebaseRef = null;
 let isFirebaseConnected = false;
@@ -479,7 +553,7 @@ const LS_FB_URL = 'barber_htm_firebase_url';
 //  LOCAL STORAGE — حفظ واسترجاع
 // ═══════════════════════════════════════════════
 function saveLocal() {
-  const data = { queue, current, totalDay, nextNum, savedAt: Date.now() };
+  const data = { queue, current, totalDay, savedAt: Date.now() };
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(data));
     updateSyncBar('local');
@@ -494,7 +568,6 @@ function loadLocal() {
     queue    = data.queue    || [];
     current  = data.current  || null;
     totalDay = data.totalDay || 0;
-    nextNum  = data.nextNum  || 1;
     return true;
   } catch(e) { return false; }
 }
@@ -591,7 +664,6 @@ function subscribeFirebase() {
       queue    = data.queue    || [];
       current  = data.current  || null;
       totalDay = data.totalDay || 0;
-      nextNum  = data.nextNum  || 1;
       saveLocal();
       render();
       updateSyncBar('online');
@@ -603,7 +675,7 @@ function pushToFirebase() {
   if (!firebaseRef || !isFirebaseConnected) { saveLocal(); return; }
   updateSyncBar('syncing');
   window._lastPushAt = Date.now();
-  const data = { queue, current, totalDay, nextNum, updatedAt: window._lastPushAt };
+  const data = { queue, current, totalDay, updatedAt: window._lastPushAt };
   firebaseRef.set(data).then(() => {
     saveLocal();
     updateSyncBar('online');
@@ -666,8 +738,7 @@ function autoReconnectFirebase() {
       console.error('Firebase connection error:', err);
       updateSyncBar('local');
       setBadge('disconnected', 'غير متصل');
-    });
-  } catch(e) {
+    });  } catch(e) {
     console.error('autoReconnect error:', e);
     updateSyncBar('local');
   }
@@ -684,7 +755,6 @@ function listenPendingBookings() {
 
     const c = {
       id:          Date.now() + Math.random(),
-      num:         nextNum++,
       name:        booking.name        || 'زبون',
       phone:       booking.phone       || '—',
       service:     booking.service     || '',
@@ -711,15 +781,17 @@ function listenPendingBookings() {
 //  QUEUE LOGIC
 // ═══════════════════════════════════════════════
 function addClient() {
-  const name  = document.getElementById('inp-name').value.trim();
-  const phone = document.getElementById('inp-phone').value.trim();
+  const name    = document.getElementById('inp-name').value.trim();
+  const phone   = document.getElementById('inp-phone').value.trim();
+  const service = document.getElementById('inp-service').value.trim();
   if (!name)  { toast('⚠️ Entrez le nom — أدخل الاسم', 'err'); return; }
   if (!phone) { toast('⚠️ Entrez le numéro — أدخل الهاتف', 'err'); return; }
-  const c = { id: Date.now(), num: nextNum++, name, phone };
+  const c = { id: Date.now(), name, phone, service, appointmentAt: Date.now() };
   if (!current) { current = c; totalDay++; }
   else queue.push(c);
-  document.getElementById('inp-name').value  = '';
-  document.getElementById('inp-phone').value = '';
+  document.getElementById('inp-name').value    = '';
+  document.getElementById('inp-phone').value   = '';
+  document.getElementById('inp-service').value = '';
   document.getElementById('inp-name').focus();
   toast(`✅ ${name} ajouté`, 'ok');
   save(); render();
@@ -762,7 +834,7 @@ function sortByAppt() {
 
 function resetDay() {
   if (!confirm('يوم جديد؟ سيتم مسح الطابور كاملاً — Nouveau jour ?')) return;
-  queue = []; current = null; totalDay = 0; nextNum = 1;
+  queue = []; current = null; totalDay = 0;
   toast('🌅 يوم جديد — Nouveau jour !', 'ok');
   save(); render();
 }
@@ -773,11 +845,14 @@ function resetDay() {
 function render() {
   const cur = document.getElementById('tv-current');
   if (current) {
+    const svcHtml = current.service
+      ? `<div class="sc-service">${current.service}</div>` : '';
     cur.innerHTML = `<div class="sc-card">
-      <div class="sc-num">${String(current.num).padStart(2,'0')}</div>
+      <div class="sc-num">01</div>
       <div class="sc-info">
         <div class="sc-name">${current.name}</div>
         <div class="sc-phone">${current.phone}</div>
+        ${svcHtml}
       </div>
       <div style="text-align:center">
         <div class="sc-pill">✂️ En service</div>
@@ -792,9 +867,13 @@ function render() {
   const wl = document.getElementById('tv-wait-lbl');
   if (queue.length > 0) {
     wl.style.display = 'flex';
-    ql.innerHTML = queue.map((c, i) =>
-      `<div class="qc"><div class="qc-n">${String(c.num).padStart(2,'0')}</div><div style="flex:1"><div class="qc-name">${c.name}</div><div class="qc-phone">${c.phone}</div></div><div class="qc-wait">⏳ ~${(i+1)*15} min</div></div>`
-    ).join('');
+    ql.innerHTML = queue.map((c, i) => {
+      // الرقم المعروض = ترتيبه الحالي + 2 (1 = current، 2 = أول واحد في queue)
+      const dispNum = i + 2;
+      const svcHtml = c.service
+        ? `<div class="qc-service">${c.service}</div>` : '';
+      return `<div class="qc"><div class="qc-n">${String(dispNum).padStart(2,'0')}</div><div style="flex:1"><div class="qc-name">${c.name}</div><div class="qc-phone">${c.phone}</div>${svcHtml}</div><div class="qc-wait">⏳ ~${(i+1)*15} min</div></div>`;
+    }).join('');
   } else { wl.style.display = 'none'; ql.innerHTML = ''; }
 
   document.getElementById('stat-today').textContent = totalDay;
@@ -813,17 +892,24 @@ function render() {
     const qi = current ? i - 1 : i;
     const canUp = !isServing && qi > 0;
     const canDn = !isServing && qi < queue.length - 1;
+    // الرقم المعروض ديناميكي حسب الترتيب الحالي (i+1) — يتحدث تلقائياً
+    // عند الحذف أو إعادة الترتيب، بدون أي رقم ثابت يبقى عالق بالزبون
+    const dispNum = i + 1;
     const apptHtml = c.appointment
-      ? `<div class="adm-appt">📅 ${c.appointment}</div>`
+      ? `<div class="adm-appt">${c.appointment}</div>`
+      : '';
+    const svcHtml = c.service
+      ? `<div class="adm-service">${c.service}</div>`
       : '';
     const webTag = c.source === 'website'
       ? `<span style="background:rgba(26,106,255,.18);color:var(--blue-light);font-size:9px;padding:2px 7px;border-radius:50px;font-weight:700;letter-spacing:.5px;">🌐 WEB</span>`
       : '';
     return `<div class="adm-item ${isServing ? 'now' : ''}">
-    <div class="adm-n">${String(c.num).padStart(2,'0')}</div>
+    <div class="adm-n">${String(dispNum).padStart(2,'0')}</div>
     <div class="adm-info">
       <div class="adm-name">${c.name}${isServing ? '<span class="now-tag">EN SERVICE</span>' : ''}${webTag}</div>
       <div class="adm-phone">${c.phone}</div>
+      ${svcHtml}
       ${apptHtml}
     </div>
     <div class="adm-acts">
