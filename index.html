@@ -1724,49 +1724,27 @@ function fetchQueuePosition(myApptTs, myPhone) {
   const posNum   = document.getElementById('positionNumber');
   const posLabel = document.getElementById('positionLabel');
 
-  Promise.all([
-    db.ref('barber_htm/queue').once('value'),
-    db.ref('barber_htm/pending_bookings').once('value')
-  ]).then(([queueSnap, pendingSnap]) => {
-    const data = queueSnap.val();
-    const all  = [];
+  db.ref('barber_htm/pending_bookings').once('value').then(snap => {
+    const all = Object.values(snap.val() || {}).filter(b => !b._processed);
 
-    // 1) الزبون الحالي اللي يُخدَم + الطابور المثبت في تطبيق المحل
-    if (data) {
-      if (data.current) all.push({ phone: data.current.phone, appointmentAt: data.current.appointmentAt || 0 });
-      if (data.queue && Array.isArray(data.queue)) {
-        data.queue.forEach(c => all.push({ phone: c.phone, appointmentAt: c.appointmentAt || 0 }));
-      }
-    }
+    // العدد الإجمالي لكل الزبائن في الطابور (كل الأيام)
+    const total  = all.length;
+    // مكان الزبون الحالي
+    const sorted = [...all].sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+    let myPos    = sorted.findIndex(b => b.phone === myPhone && b.appointmentAt === myApptTs);
+    if (myPos === -1) myPos = sorted.findIndex(b => b.phone === myPhone);
+    if (myPos === -1) myPos = total - 1;
 
-    // 2) الحجوزات الجديدة اللي لسا التطبيق ما عالجهاش (pending)
-    const pendingVal = pendingSnap.val();
-    if (pendingVal) {
-      Object.values(pendingVal).forEach(b => {
-        // نتجنب التكرار: إذا الزبون موجود فالـ queue أصلاً، ما نزيدوش مرتين
-        const alreadyIn = all.some(v => v.phone === b.phone && v.appointmentAt === b.appointmentAt);
-        if (!alreadyIn) all.push({ phone: b.phone, appointmentAt: b.appointmentAt || 0 });
-      });
-    }
+    const before = myPos; // عدد الزبائن قبله
 
-    // نرتب الكل حسب appointmentAt من الأقرب للأبعد
-    all.sort((a, b) => (a.appointmentAt || 0) - (b.appointmentAt || 0));
+    posNum.textContent = total;
 
-    // نلقى مكان الزبون الحالي بدقة (الهاتف + نفس وقت الموعد)
-    let myPos = all.findIndex(v => v.phone === myPhone && v.appointmentAt === myApptTs);
-    if (myPos === -1) myPos = all.findIndex(v => v.phone === myPhone);
-    if (myPos === -1) myPos = all.length - 1;
-
-    const position = myPos + 1;
-    posNum.textContent = position;
-
-    if (position === 1) {
+    if (before === 0) {
       posLabel.textContent = 'أنت الأول في الطابور 🎉';
+    } else if (before === 1) {
+      posLabel.textContent = 'فيه زبون واحد قبلك';
     } else {
-      const before = position - 1;
-      posLabel.textContent = before === 1
-        ? 'فيه زبون واحد قبلك'
-        : 'فيه ' + before + ' زبائن قبلك';
+      posLabel.textContent = 'فيه ' + before + ' زبائن قبلك';
     }
   }).catch(() => {
     posNum.textContent   = '✓';

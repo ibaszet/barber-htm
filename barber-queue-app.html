@@ -244,6 +244,8 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 .btn-done:hover{background:#1a3a5e;}
 .btn-rm{background:#1a1a1a;color:#555;border:1px solid #252525;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:13px;transition:all .2s;}
 .btn-rm:hover{background:#2a0d0d;color:var(--red);border-color:var(--red);}
+.btn-postpone{background:#1a1a2a;color:#a78bfa;border:1px solid #2d2a4a;border-radius:8px;padding:8px 12px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;transition:all .2s;white-space:nowrap;}
+.btn-postpone:hover{background:#2d2a4a;border-color:#7c3aed;}
 .btn-up,.btn-dn{background:#141414;color:#444;border:1px solid #222;border-radius:8px;padding:8px 9px;cursor:pointer;font-size:13px;transition:all .2s;line-height:1;}
 .btn-up:hover{background:rgba(0,70,184,.18);color:var(--blue-light);border-color:rgba(0,70,184,.4);}
 .btn-dn:hover{background:rgba(201,151,58,.12);color:var(--gold);border-color:rgba(201,151,58,.4);}
@@ -811,6 +813,45 @@ function remove(id) {
   save(); render();
 }
 
+// تأجيل زبون لغدوة — يحرك موعده لبكرة نفس الوقت
+function postpone(id) {
+  const sid = String(id);
+
+  // نلقاه في queue أو current
+  let target = null;
+  if (current && String(current.id) === sid) target = current;
+  else target = queue.find(c => String(c.id) === sid);
+  if (!target) return;
+
+  // نحرك appointmentAt لنفس اليوم + 24 ساعة
+  const tomorrow = (target.appointmentAt || Date.now()) + 24 * 60 * 60 * 1000;
+  const tDate = new Date(tomorrow);
+  const dayNames = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const months   = ['يناير','فبراير','مارس','أبريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const newLabel = dayNames[tDate.getDay()] + ' ' + tDate.getDate() + ' ' + months[tDate.getMonth()];
+
+  target.appointmentAt = tomorrow;
+  target.appointment   = newLabel;
+
+  // نشيله من current أو queue الحالي ونحطه في آخر queue
+  if (current && String(current.id) === sid) {
+    // يطلع من current ويدخل الطابور
+    if (queue.length > 0) current = queue.shift();
+    else current = null;
+    queue.push(target);
+  } else {
+    // نحركه لآخر الطابور
+    queue = queue.filter(c => String(c.id) !== sid);
+    queue.push(target);
+  }
+
+  // نرتب الطابور من جديد حسب appointmentAt
+  queue.sort((a, b) => (a.appointmentAt || 0) - (b.appointmentAt || 0));
+
+  toast('📅 ' + target.name + ' مأجل لـ ' + newLabel, 'ok');
+  save(); render();
+}
+
 function moveUp(qi) {
   if (qi <= 0 || qi >= queue.length) return;
   [queue[qi - 1], queue[qi]] = [queue[qi], queue[qi - 1]];
@@ -918,6 +959,7 @@ function render() {
         : `<button class="btn-up" onclick="moveUp(${qi})" ${canUp ? '' : 'disabled'}>▲</button>
            <button class="btn-dn" onclick="moveDn(${qi})" ${canDn ? '' : 'disabled'}>▼</button>`
       }
+      <button class="btn-postpone" onclick="postpone(${c.id})" title="تأجيل لغدوة">📅 غدوة</button>
       <button class="btn-rm" onclick="remove(${c.id})">✕</button>
     </div>
   </div>`;
