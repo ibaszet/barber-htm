@@ -661,15 +661,16 @@ function subscribeFirebase() {
   firebaseRef.on('value', snapshot => {
     const data = snapshot.val();
     if (!data) return;
-    // Only update if data is newer than local (avoid echo)
-    if (data.updatedAt && data.updatedAt > (window._lastPushAt || 0) + 100) {
-      queue    = data.queue    || [];
-      current  = data.current  || null;
-      totalDay = data.totalDay || 0;
-      saveLocal();
-      render();
-      updateSyncBar('online');
-    }
+    // نتجاهل فقط التحديثات اللي جات من push تاعنا (نفس الـ timestamp)
+    if (data.updatedAt && data.updatedAt === window._lastPushAt) return;
+    // كل تحديث من جهاز آخر → نقبله مباشرة
+    queue    = data.queue    || [];
+    current  = data.current  || null;
+    totalDay = data.totalDay || 0;
+    window._lastPushAt = data.updatedAt || Date.now();
+    saveLocal();
+    render();
+    updateSyncBar('online');
   });
 }
 
@@ -718,7 +719,6 @@ function toggleFirebaseFields() {
 const FIREBASE_URL = 'https://barber-haithem-default-rtdb.europe-west1.firebasedatabase.app';
 
 function autoReconnectFirebase() {
-  // الـ app محضّر مسبقاً في <script> بعد SDK — نستعمله مباشرة
   try {
     firebaseDb  = firebase.database();
     firebaseRef = firebaseDb.ref('barber_htm/queue');
@@ -727,12 +727,28 @@ function autoReconnectFirebase() {
     updateSyncBar('syncing');
     setBadge('connecting', 'يتصل...');
 
-    firebaseRef.once('value').then(() => {
+    // نقرا Firebase أولاً — هو المصدر الوحيد للحقيقة
+    firebaseRef.once('value').then(snapshot => {
       isFirebaseConnected = true;
       localStorage.setItem(LS_FB_URL, FIREBASE_URL);
       showFbConnected(FIREBASE_URL);
       setBadge('connected', '✅ متصل');
-      pushToFirebase();
+
+      const data = snapshot.val();
+      if (data && data.updatedAt) {
+        // Firebase عندو داتا → نحملها مباشرة بدون push
+        queue    = data.queue    || [];
+        current  = data.current  || null;
+        totalDay = data.totalDay || 0;
+        window._lastPushAt = data.updatedAt;
+        saveLocal();
+        render();
+        updateSyncBar('online');
+      } else {
+        // Firebase فاضي → نرفع النسخة المحلية
+        pushToFirebase();
+      }
+
       subscribeFirebase();
       listenPendingBookings();
       toast('🔥 Firebase متصل تلقائياً 🌐', 'ok');
@@ -740,7 +756,8 @@ function autoReconnectFirebase() {
       console.error('Firebase connection error:', err);
       updateSyncBar('local');
       setBadge('disconnected', 'غير متصل');
-    });  } catch(e) {
+    });
+  } catch(e) {
     console.error('autoReconnect error:', e);
     updateSyncBar('local');
   }

@@ -1723,33 +1723,8 @@ async function bookNow() {
 function fetchQueuePosition(myApptTs, myPhone) {
   const posNum   = document.getElementById('positionNumber');
   const posLabel = document.getElementById('positionLabel');
-
-  db.ref('barber_htm/pending_bookings').once('value').then(snap => {
-    const all = Object.values(snap.val() || {}).filter(b => !b._processed);
-
-    // العدد الإجمالي لكل الزبائن في الطابور (كل الأيام)
-    const total  = all.length;
-    // مكان الزبون الحالي
-    const sorted = [...all].sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
-    let myPos    = sorted.findIndex(b => b.phone === myPhone && b.appointmentAt === myApptTs);
-    if (myPos === -1) myPos = sorted.findIndex(b => b.phone === myPhone);
-    if (myPos === -1) myPos = total - 1;
-
-    const before = myPos; // عدد الزبائن قبله
-
-    posNum.textContent = total;
-
-    if (before === 0) {
-      posLabel.textContent = 'أنت الأول في الطابور 🎉';
-    } else if (before === 1) {
-      posLabel.textContent = 'فيه زبون واحد قبلك';
-    } else {
-      posLabel.textContent = 'فيه ' + before + ' زبائن قبلك';
-    }
-  }).catch(() => {
-    posNum.textContent   = '✓';
-    posLabel.textContent = 'تم تسجيلك بنجاح';
-  });
+  posNum.textContent   = '✓';
+  posLabel.textContent = 'تم تسجيل موعدك بنجاح';
 }
 
 // ─── helpers ────────────────────────────────────────────────
