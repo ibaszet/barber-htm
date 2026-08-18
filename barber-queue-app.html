@@ -270,7 +270,23 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
 </head>
 <body>
 
-<!-- ════ LOGIN SCREEN — حماية بكلمة سر ════ -->
+<!-- Firebase SDK — يُحمَّل أولاً لأن شاشة الدخول تحتاج Firebase Auth فوراً -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyBF4XH88YKePJlPppeyWmqtUtjMETk64M0",
+    authDomain:        "barber-haithem.firebaseapp.com",
+    databaseURL:       "https://barber-haithem-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "barber-haithem",
+    storageBucket:     "barber-haithem.firebasestorage.app",
+    messagingSenderId: "895304335588",
+    appId:             "1:895304335588:web:68703141cbf6407d2c2cf1"
+  });
+</script>
+
+<!-- ════ LOGIN SCREEN — حماية بواسطة Firebase Authentication ════ -->
 <div id="lockScreen" style="
   position:fixed;inset:0;z-index:9999;
   background:#0a0a0a;
@@ -283,11 +299,14 @@ body{font-family:'Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;backgroun
     <div style="font-size:12px;color:#666;margin-top:4px;letter-spacing:2px;">🔒 دخول الإدارة — ADMIN ACCESS</div>
   </div>
   <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:14px;">
-    <input type="password" id="lockPassInput" placeholder="••••••••" autocomplete="off"
+    <input type="email" id="lockEmailInput" placeholder="البريد الإلكتروني" autocomplete="username" dir="ltr"
+      style="width:100%;background:#161616;border:1.5px solid #252525;border-radius:12px;padding:16px 18px;color:#fff;font-family:'Cairo',sans-serif;font-size:15px;text-align:center;outline:none;transition:border-color .2s;"
+      onkeydown="if(event.key==='Enter') document.getElementById('lockPassInput').focus()">
+    <input type="password" id="lockPassInput" placeholder="••••••••" autocomplete="current-password"
       style="width:100%;background:#161616;border:1.5px solid #252525;border-radius:12px;padding:16px 18px;color:#fff;font-family:'Cairo',sans-serif;font-size:18px;text-align:center;letter-spacing:4px;outline:none;transition:border-color .2s;"
       onkeydown="if(event.key==='Enter') checkLockPassword()">
     <div id="lockError" style="display:none;color:#c8102e;font-size:13px;text-align:center;font-weight:700;">❌ كلمة السر غير صحيحة</div>
-    <button onclick="checkLockPassword()" style="width:100%;background:#0046b8;color:#fff;border:none;border-radius:12px;padding:15px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:16px;font-weight:700;transition:all .2s;">
+    <button id="lockLoginBtn" onclick="checkLockPassword()" style="width:100%;background:#0046b8;color:#fff;border:none;border-radius:12px;padding:15px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:16px;font-weight:700;transition:all .2s;">
       🔓 دخول
     </button>
   </div>
@@ -306,35 +325,86 @@ body.locked > *:not(#lockScreen) { display: none !important; }
 
 <script>
 document.body.classList.add('locked');
-const ADMIN_PASSWORD   = 'haithem2006';
-const LOCK_SESSION_KEY = 'barber_htm_unlocked';
 
+// ═══════════════════════════════════════════════
+//  FIREBASE AUTHENTICATION — دخول الإدارة
+// ═══════════════════════════════════════════════
 function checkLockPassword() {
-  const input = document.getElementById('lockPassInput');
-  const err   = document.getElementById('lockError');
-  if (input.value === ADMIN_PASSWORD) {
-    sessionStorage.setItem(LOCK_SESSION_KEY, '1');
-    unlockApp();
-  } else {
-    err.style.display = 'block';
-    input.value = '';
-    input.style.borderColor = '#c8102e';
-    const box = document.getElementById('lockScreen');
+  const emailInput = document.getElementById('lockEmailInput');
+  const passInput  = document.getElementById('lockPassInput');
+  const btn        = document.getElementById('lockLoginBtn');
+  const email = emailInput.value.trim();
+  const pass  = passInput.value;
+
+  if (!email || !pass) {
+    showLockError('⚠️ يرجى إدخال البريد الإلكتروني وكلمة السر');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ جاري الدخول...';
+
+  firebase.auth().signInWithEmailAndPassword(email, pass)
+    .then(() => {
+      document.getElementById('lockError').style.display = 'none';
+      // unlockApp() سيُستدعى تلقائياً بواسطة onAuthStateChanged
+    })
+    .catch(error => {
+      let msg = '❌ حدث خطأ، حاول مجدداً';
+      switch (error.code) {
+        case 'auth/invalid-email':
+          msg = '❌ البريد الإلكتروني غير صحيح'; break;
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          msg = '❌ البريد الإلكتروني أو كلمة السر غير صحيحة'; break;
+        case 'auth/too-many-requests':
+          msg = '⏳ عدة محاولات فاشلة، حاول لاحقاً'; break;
+        case 'auth/network-request-failed':
+          msg = '📡 تحقق من اتصال الإنترنت'; break;
+      }
+      showLockError(msg);
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = '🔓 دخول';
+    });
+}
+
+function showLockError(msg) {
+  const err  = document.getElementById('lockError');
+  const pass = document.getElementById('lockPassInput');
+  err.textContent = msg;
+  err.style.display = 'block';
+  pass.value = '';
+  pass.style.borderColor = '#c8102e';
+  const box = document.getElementById('lockScreen');
+  if (box) {
     box.style.animation = 'none';
     requestAnimationFrame(() => { box.style.animation = 'shakeLock .4s ease'; });
-    setTimeout(() => { input.style.borderColor = '#252525'; }, 1500);
   }
+  setTimeout(() => { pass.style.borderColor = '#252525'; }, 1500);
 }
 
 function unlockApp() {
   document.body.classList.remove('locked');
-  document.getElementById('lockScreen').remove();
+  const ls = document.getElementById('lockScreen');
+  if (ls) ls.remove();
 }
 
-// إذا الجلسة مفكوكة مسبقاً، ما نطلبش الباسورد من جديد
-if (sessionStorage.getItem(LOCK_SESSION_KEY) === '1') {
-  unlockApp();
+function logoutAdmin() {
+  firebase.auth().signOut();
 }
+
+// Firebase Auth يحتفظ بالجلسة تلقائياً (حتى بعد إغلاق المتصفح)
+// onAuthStateChanged يتحقق من حالة الدخول عند كل تحميل للصفحة
+firebase.auth().onAuthStateChanged(user => {
+  if (user) {
+    unlockApp();
+  } else {
+    document.body.classList.add('locked');
+  }
+});
 </script>
 
 <div class="nav-bar">
@@ -470,6 +540,9 @@ if (sessionStorage.getItem(LOCK_SESSION_KEY) === '1') {
       <div class="adm-title">Barber HTM 💈</div>
       <div class="adm-sub">Gestion de file — إدارة الطابور</div>
     </div>
+    <button onclick="logoutAdmin()" title="تسجيل الخروج" style="margin-left:auto;background:rgba(200,16,46,.1);border:1px solid rgba(200,16,46,.3);color:var(--red-light);padding:8px 14px;border-radius:10px;cursor:pointer;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;white-space:nowrap;">
+      🚪 خروج
+    </button>
   </div>
 
   <!-- ═══ FIREBASE CONFIG CARD ═══ -->
@@ -1052,19 +1125,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter') addClient(); 
 })();
 </script>
 
-<!-- Firebase SDK — loaded last باش ما يبلوكش الصفحة -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- Firebase مُهيّأ مسبقاً في بداية الصفحة (Auth + App) — هنا فقط نبدأ مزامنة الطابور -->
 <script>
-  firebase.initializeApp({
-    apiKey:            "AIzaSyBF4XH88YKePJlPppeyWmqtUtjMETk64M0",
-    authDomain:        "barber-haithem.firebaseapp.com",
-    databaseURL:       "https://barber-haithem-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId:         "barber-haithem",
-    storageBucket:     "barber-haithem.firebasestorage.app",
-    messagingSenderId: "895304335588",
-    appId:             "1:895304335588:web:68703141cbf6407d2c2cf1"
-  });
   autoReconnectFirebase();
 </script>
 <!-- PWA Service Worker -->
